@@ -8,14 +8,21 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 // persistent localStorage prefix
 const LS_PREFIX = 'api-cache:';
 
-const BASE_URLS = import.meta.env.MODE === 'development'
-  ? ['http://localhost:8000']
-  : [
-      'https://campusfix-v8.onrender.com',              // 🔥 Primary (priority)
-      'https://campusfix-backend-s2ow.onrender.com'     // Fallback
-    ];
+// ✅ Reliable Vite production flag
+const isProduction = import.meta.env.PROD === true;
 
-let currentBaseIndex = 0;
+const BASE_URLS = isProduction
+  ? [
+      'https://campusfix-v8.onrender.com',           // Primary (Render)
+      'https://campusfix-backend-s2ow.onrender.com'  // Fallback
+    ]
+  : ['http://localhost:8000'];                       // Dev (Laptop)
+
+// 🚀 Persist last working backend
+let currentBaseIndex = parseInt(localStorage.getItem('active_base_index') || '0', 10);
+if (currentBaseIndex < 0 || currentBaseIndex >= BASE_URLS.length) {
+  currentBaseIndex = 0;
+}
 
 const api = axios.create({
   baseURL: BASE_URLS[currentBaseIndex],
@@ -318,16 +325,17 @@ api.interceptors.response.use(
     if (!config._failoverTried && isNetworkOrTimeout && BASE_URLS.length > 1) {
       config._failoverTried = true;
 
-      // switch to next backend
       currentBaseIndex = (currentBaseIndex + 1) % BASE_URLS.length;
       const newBase = BASE_URLS[currentBaseIndex];
+
+      // 🚀 Remember the healthy backend
+      localStorage.setItem('active_base_index', currentBaseIndex.toString());
 
       console.warn('🔁 Switching backend to:', newBase);
       api.defaults.baseURL = newBase;
       config.baseURL = newBase;
       config.timeout = 60000;
 
-      // retry the original request against the new backend
       return api.request(config);
     }
 

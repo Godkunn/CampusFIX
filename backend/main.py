@@ -459,17 +459,21 @@ async def lifespan(app: FastAPI):
 # Single app instance using lifespan
 app = FastAPI(lifespan=lifespan)
 
-# CORS (keep your origins; add any new frontend origin if needed)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://campusfix-v3.onrender.com",
+        "http://localhost",
         "http://localhost:5173",
+        "https://localhost",                 # 🔑 Capacitor / APK origin
+        "https://campusfix-v3.onrender.com",
+        "https://campusfix-v8.onrender.com",
+        "https://campusfix-backend-s2ow.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 def get_password_hash(password):
     return pwd_context.hash(password.encode('utf-8')[:72])
