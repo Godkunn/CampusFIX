@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AuthContext } from './auth/AuthContext';
+import { App as CapacitorApp } from '@capacitor/app';
 
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { LogOut, Menu, X } from 'lucide-react';
@@ -58,6 +59,20 @@ useEffect(() => {
   if ('scrollRestoration' in window.history) {
     window.history.scrollRestoration = 'manual';
   }
+}, []);
+
+useEffect(() => {
+  const handler = CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+    if (canGoBack) {
+      window.history.back();
+    } else {
+      CapacitorApp.exitApp();
+    }
+  });
+
+  return () => {
+    handler.remove();
+  };
 }, []);
 
   // 1. Auth Check

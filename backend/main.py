@@ -66,7 +66,7 @@ if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # ✅ FORCE SESSION POOLER (Port 6543)
-# Your Supabase has 46 connections available in Session Mode
+# Supabase has 46 connections available in Session Mode
 if ":5432" in DATABASE_URL:
     print("⚡ Switching to Session Pooler (Port 6543)...")
     DATABASE_URL = DATABASE_URL.replace(":5432", ":6543")
@@ -93,19 +93,13 @@ engine = create_engine(
         "keepalives_idle": 30,
         "keepalives_interval": 10,
         "keepalives_count": 5,
+        "connect_timeout": 10, 
     },
     # ✅ CRITICAL FIX for Transaction Mode
     execution_options={
         "isolation_level": "AUTOCOMMIT"
     }
 )
-
-# Ensure default schema is public (Neon fix)
-with engine.connect() as conn:
-    conn.execute(text("SET search_path TO public"))
-
-
-print("✅ Connected to Supabase (Session Mode, Port 6543)")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -450,11 +444,26 @@ async def lifespan(app: FastAPI):
     # Startup
     init_google_sheets()
 
-    # Ensure DB schema but don't crash the app if DB unreachable
+    # Try DB once – NON-FATAL
+    try:
+        with engine.connect() as conn:
+            try:
+                conn.execute(text("SET search_path TO public"))
+            except Exception as ex:
+                print(f"⚠️ SET search_path failed (non-fatal): {ex}")
+        print("✅ DB client initialized")
+    except Exception as e:
+        print(f"⚠️ Initial DB connection failed (non-fatal): {e}")
+
+    # Create tables with retries
     create_schema_with_retries(max_retries=5, base_delay=2.0)
 
     yield
-    # Shutdown (if needed)
+
+    try:
+        engine.dispose()
+    except Exception:
+        pass
 
 # Single app instance using lifespan
 app = FastAPI(lifespan=lifespan)
@@ -1104,7 +1113,7 @@ from reportlab.graphics.charts.barcharts import VerticalBarChart
 from reportlab.graphics.charts.piecharts import Pie
 
 # Define Timezone (Prevents crash if IST is missing)
-IST = pytz.timezone('Asia/Kolkata')
+# IST = pytz.timezone('Asia/Kolkata')
 
 # ==========================================
 # 8. REPORT GENERATION (PRODUCTION)
