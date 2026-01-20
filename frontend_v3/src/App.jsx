@@ -65,8 +65,9 @@ useEffect(() => {
 
   const setupCapacitor = async () => {
     try {
-      const { App: CapacitorApp } = await import('@capacitor/app');
-
+      const { App: CapacitorApp } = await import(
+  /* @vite-ignore */ '@capacitor/app'
+);
       handler = CapacitorApp.addListener('backButton', ({ canGoBack }) => {
         if (canGoBack) {
           window.history.back();
